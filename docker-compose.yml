@@ -1,0 +1,61 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rekrutacja-php-app
+    restart: unless-stopped
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+    networks:
+      - rekrutacja-network
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DB_CONNECTION=mysql
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_DATABASE=rekrutacja
+      - DB_USERNAME=rekrutacja_user
+      - DB_PASSWORD=rekrutacja_pass
+    command: >
+      sh -c "
+        composer install --no-interaction --optimize-autoloader &&
+        if [ ! -f .env ]; then cp .env.example .env; fi &&
+        php artisan key:generate --force &&
+        php artisan migrate --force &&
+        php artisan serve --host=0.0.0.0 --port=8000
+      "
+
+  db:
+    image: mysql:8.0
+    container_name: rekrutacja-php-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: rekrutacja
+      MYSQL_USER: rekrutacja_user
+      MYSQL_PASSWORD: rekrutacja_pass
+      MYSQL_ROOT_PASSWORD: root_password
+    volumes:
+      - db-data:/var/lib/mysql
+    networks:
+      - rekrutacja-network
+    ports:
+      - "3307:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot_password"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  rekrutacja-network:
+    driver: bridge
+
+volumes:
+  db-data:
+    driver: local

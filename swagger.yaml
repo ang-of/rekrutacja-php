@@ -1,0 +1,836 @@
+openapi: 3.0.0
+info:
+  title: Rekrutacja-php API
+  description: API documentation generated from Postman collection
+  version: 1.0.0
+servers:
+  - url: http://localhost
+    description: Local development server
+    variables:
+      url:
+        default: http://localhost
+        description: Base URL
+  - url: http://127.0.0.1:8000
+    description: Artisan serve
+    variables:
+      url:
+        default: http://127.0.0.1:8000
+        description: Base URL
+  - url: http://127.0.0.1:8080
+    description: docker
+    variables:
+      url:
+        default: http://127.0.0.1:8080
+        description: Base URL
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  
+  schemas:
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: test@test.pl
+        password:
+          type: string
+          format: password
+          example: test1234
+    
+    RegisterRequest:
+      type: object
+      required:
+        - name
+        - email
+        - password
+        - password_confirmation
+      properties:
+        name:
+          type: string
+          example: test
+        email:
+          type: string
+          format: email
+          example: john@test.pl
+        password:
+          type: string
+          format: password
+          example: test1234
+        password_confirmation:
+          type: string
+          format: password
+          example: test1234
+    
+    TodoRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          example: "xxx 3"
+        description:
+          type: string
+          example: "jakis opis 12312"
+    
+    TaskCreateRequest:
+      type: object
+      required:
+        - task
+      properties:
+        task:
+          type: string
+          example: "Nazwa zadania"
+          description: Task name (max 255 characters)
+        parent_id:
+          type: integer
+          nullable: true
+          example: null
+          description: Parent task ID (optional)
+        status:
+          type: integer
+          nullable: true
+          example: 0
+          description: Task status
+    
+    TaskRequest:
+      type: object
+      properties:
+        task:
+          type: string
+          example: "Nazwa zadania"
+          description: Task name (max 255 characters)
+        parent_id:
+          type: integer
+          nullable: true
+          example: null
+          description: Parent task ID (optional)
+        status:
+          type: integer
+          nullable: true
+          example: 1
+    
+    PostRequest:
+      type: object
+      required:
+        - content
+      properties:
+        content:
+          type: string
+          example: "dfklgjhsdfg"
+    
+    PostUpdateRequest:
+      type: object
+      properties:
+        content:
+          type: string
+          example: "asdfasd dfv dvf dv"
+        status:
+          type: integer
+          example: 1
+    
+    ReactionRequest:
+      type: object
+      required:
+        - emoji
+      properties:
+        emoji:
+          type: string
+          example: "🤔"
+          description: Must be a valid emoji
+    
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+        errors:
+          type: object
+
+paths:
+  /api/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login user
+      description: Authenticate user and return access token
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Successful login
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  user:
+                    type: object
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register new user
+      description: Create a new user account
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User successfully registered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  user:
+                    type: object
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/logout:
+    post:
+      tags:
+        - Authentication
+      summary: Logout user
+      description: Revoke user access token
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Successfully logged out
+        '401':
+          description: Unauthorized
+
+  /api/user:
+    get:
+      tags:
+        - User
+      summary: Get authenticated user
+      description: Returns the currently authenticated user's information
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User information
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: Unauthorized
+
+  /api/feed:
+    get:
+      tags:
+        - Feed
+      summary: Get feed
+      description: Returns the user's feed
+      responses:
+        '200':
+          description: Feed data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /api/users:
+    get:
+      tags:
+        - Users
+      summary: Get all users
+      description: Returns list of all users
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        '401':
+          description: Unauthorized
+
+  /api/users/{id}/follow:
+    put:
+      tags:
+        - Users
+      summary: Follow user
+      description: Follow a user by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: User ID to follow
+      responses:
+        '200':
+          description: Successfully followed user
+        '401':
+          description: Unauthorized
+        '404':
+          description: User not found
+
+  /api/users/{id}/unfollow:
+    delete:
+      tags:
+        - Users
+      summary: Unfollow user
+      description: Unfollow a user by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: User ID to unfollow
+      responses:
+        '200':
+          description: Successfully unfollowed user
+        '401':
+          description: Unauthorized
+        '404':
+          description: User not found
+
+  /api/invites:
+    get:
+      tags:
+        - Users
+      summary: Get invites
+      description: Returns user's invites
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of invites
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        '401':
+          description: Unauthorized
+
+  /api/friends:
+    get:
+      tags:
+        - Users
+      summary: Get friends
+      description: Returns user's friends list
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of friends
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        '401':
+          description: Unauthorized
+
+  /api/todos:
+    get:
+      tags:
+        - Todos
+      summary: Get all todos
+      description: Returns list of all todos for authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of todos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        '401':
+          description: Unauthorized
+    
+    post:
+      tags:
+        - Todos
+      summary: Create todo
+      description: Create a new todo
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TodoRequest'
+      responses:
+        '201':
+          description: Todo created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: Unauthorized
+        '422':
+          description: Validation error
+
+  /api/todos/{id}:
+    get:
+      tags:
+        - Todos
+      summary: Get todo by ID
+      description: Returns a specific todo by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Todo ID
+      responses:
+        '200':
+          description: Todo details
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: Unauthorized
+        '404':
+          description: Todo not found
+    
+    put:
+      tags:
+        - Todos
+      summary: Update todo
+      description: Update an existing todo
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Todo ID
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TodoRequest'
+      responses:
+        '200':
+          description: Todo updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: Unauthorized
+        '404':
+          description: Todo not found
+        '422':
+          description: Validation error
+    
+    delete:
+      tags:
+        - Todos
+      summary: Delete todo
+      description: Delete a todo by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Todo ID
+      responses:
+        '204':
+          description: Todo deleted successfully
+        '401':
+          description: Unauthorized
+        '404':
+          description: Todo not found
+
+  /api/todos/{id}/tasks:
+    get:
+      tags:
+        - Tasks
+      summary: Get tasks for todo
+      description: Returns all tasks for a specific todo
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Todo ID
+      responses:
+        '200':
+          description: List of tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        '401':
+          description: Unauthorized
+        '404':
+          description: Todo not found
+    
+    post:
+      tags:
+        - Tasks
+      summary: Create task for todo
+      description: Create a new task for a specific todo
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Todo ID
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TaskCreateRequest'
+      responses:
+        '201':
+          description: Task created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: Unauthorized
+        '404':
+          description: Todo not found
+        '422':
+          description: Validation error
+
+  /api/todos/{id}/tasks/{taskId}:
+    get:
+      tags:
+        - Tasks
+      summary: Get specific task
+      description: Returns a specific task from a todo
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Todo ID
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Task ID
+      responses:
+        '200':
+          description: Task details
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: Unauthorized
+        '404':
+          description: Task not found
+    
+    put:
+      tags:
+        - Tasks
+      summary: Update task
+      description: Update an existing task
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Todo ID
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Task ID
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+      responses:
+        '200':
+          description: Task updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: Unauthorized
+        '404':
+          description: Task not found
+        '422':
+          description: Validation error
+    
+    delete:
+      tags:
+        - Tasks
+      summary: Delete task
+      description: Delete a task by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Todo ID
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Task ID
+      responses:
+        '204':
+          description: Task deleted successfully
+        '401':
+          description: Unauthorized
+        '404':
+          description: Task not found
+
+  /api/post:
+    post:
+      tags:
+        - Posts
+      summary: Create post
+      description: Create a new post
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PostRequest'
+      responses:
+        '201':
+          description: Post created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: Unauthorized
+        '422':
+          description: Validation error
+
+  /api/posts/{id}:
+    post:
+      tags:
+        - Posts
+      summary: Update post
+      description: Update an existing post
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Post ID
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PostUpdateRequest'
+      responses:
+        '200':
+          description: Post updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: Unauthorized
+        '404':
+          description: Post not found
+        '422':
+          description: Validation error
+    
+    delete:
+      tags:
+        - Posts
+      summary: Delete post
+      description: Delete a post by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Post ID
+      responses:
+        '204':
+          description: Post deleted successfully
+        '401':
+          description: Unauthorized
+        '404':
+          description: Post not found
+
+  /api/comment/post/{id}:
+    post:
+      tags:
+        - Comments
+      summary: Add comment to post
+      description: Add a new comment to a post
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Post ID
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+      responses:
+        '201':
+          description: Comment added successfully
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          description: Post not found
+        '422':
+          description: Validation error
+
+  /api/reaction/post/{id}:
+    post:
+      tags:
+        - Reactions
+      summary: Add reaction to post
+      description: Add an emoji reaction to a post
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Post ID
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReactionRequest'
+      responses:
+        '201':
+          description: Reaction added successfully
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          description: Post not found
+        '422':
+          description: Validation error
+
+tags:
+  - name: Authentication
+    description: User authentication endpoints
+  - name: User
+    description: User profile endpoints
+  - name: Users
+    description: User management and social features
+  - name: Feed
+    description: Feed endpoints
+  - name: Todos
+    description: Todo management endpoints
+  - name: Tasks
+    description: Task management endpoints
+  - name: Posts
+    description: Post management endpoints
+  - name: Comments
+    description: Comment management endpoints
+  - name: Reactions
+    description: Reaction management endpoints
